@@ -1,30 +1,38 @@
-const express = require('express');
-const nodemailer = require('nodemailer');
-const twilio = require('twilio');
-require('dotenv').config();
-
-const app = express();
-app.use(express.json());
-
 app.post('/send-quote', async (req, res) => {
-  const { partNumber, quantity, shippingAddress, addressType, deadline, email, phone } = req.body;
+  const {
+    partNumber,
+    quantity,
+    shippingAddress,
+    addressType,
+    deadline,
+    email,
+    phone,
+    part_number,
+    shipping_address,
+    residential,
+    delivery_date
+  } = req.body;
+
+  const resolvedPart = partNumber || part_number;
+  const resolvedAddress = shippingAddress || shipping_address;
+  const resolvedType = addressType || (residential ? 'Residential' : 'Commercial');
+  const resolvedDeadline = deadline || delivery_date;
 
   const quoteDetails = `
 New Quote Request:
-Part #: ${partNumber}
+Part #: ${resolvedPart}
 Quantity: ${quantity}
-Shipping Address: ${shippingAddress} (${addressType})
-Needed By: ${deadline}
+Shipping Address: ${resolvedAddress} (${resolvedType})
+Needed By: ${resolvedDeadline || 'Not specified'}
 Customer Email: ${email}
 Customer Phone: ${phone}
   `;
 
-  // Gmail Email Setup
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS  // use App Password if 2FA is enabled
+      pass: process.env.GMAIL_PASS
     }
   });
 
@@ -35,7 +43,6 @@ Customer Phone: ${phone}
     text: quoteDetails
   });
 
-  // Twilio SMS Setup
   const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
   await client.messages.create({
     body: quoteDetails,
@@ -45,5 +52,3 @@ Customer Phone: ${phone}
 
   res.send({ status: 'Quote sent!' });
 });
-
-app.listen(3000, () => console.log('Server running on port 3000'));
